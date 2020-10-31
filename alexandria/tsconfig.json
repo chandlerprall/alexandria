@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "rootDir": "./src",
+    "outDir": "build",
+    "declaration": true,
+    "noUnusedLocals": true,
+    "strict": true,
+    "moduleResolution": "node",
+    "lib": [],
+    "target": "ES2019",
+    "module": "CommonJS",
+    "esModuleInterop": true
+  },
+  "include": ["src/**/*"]
+}

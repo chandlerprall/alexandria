@@ -1,0 +1,14 @@
+{
+  "name": "alexandria-consumer",
+  "private": true,
+  "version": "1.0.0",
+  "license": "zlib",
+  "scripts": {
+    "dev": "tsc --watch"
+  },
+  "devDependencies": {
+    "@types/glob": "^7.1.3",
+    "alexandria": "^1.0.0",
+    "glob": "^7.1.6"
+  }
+}
