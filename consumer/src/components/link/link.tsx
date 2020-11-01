@@ -1,5 +1,7 @@
-import React, { FunctionComponent } from 'react';
-import { CommonProps } from '@elastic/eui';
+import React, { FunctionComponent, Fragment } from 'react';
+import { CommonProps, EuiToolTip, EuiImage, EuiBadge } from '@elastic/eui';
+import { DocModal } from '../modal/modal';
+import {useArticleMeta} from "../../utils/useArticleMeta";
 
 export type DocLinkProps = CommonProps & {
     id: string;
@@ -8,14 +10,63 @@ export type DocLinkProps = CommonProps & {
     tooltip?: boolean;
 };
 
-// TODO: Gatsby doesn't let you pass variables in static queries. As a workaround, this
-// fetches the full list, then filters out the one we need by id. It likely is terribly
-// unperformant and we should find another way to do this.
 export const DocLink: FunctionComponent<DocLinkProps> = ({
                                                              id,
                                                              section,
                                                              tooltip,
                                                              text,
                                                          }) => {
-    return <a href="#">{text || id}</a>;
+    const article = useArticleMeta(id);
+
+    if (article === undefined) {
+        // Production doesn't show a big warning modal
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error(`${id} is not a valid id`);
+        } else {
+            // In dev we should alert the writer it's broken
+            const linkErrorText = `${id} is not a valid link`;
+            return (
+                <Fragment>
+                    <DocModal
+                        title="Bad link"
+                        body={
+                            <p>
+                                There is a bad link reference on this page using the id of{' '}
+                                <strong>{id}</strong>
+                            </p>
+                        }
+                    />
+                    <EuiBadge color="danger" iconType="alert">
+                        {linkErrorText}
+                    </EuiBadge>
+                </Fragment>
+            );
+        }
+    }
+
+    const linkText = text ? text : article.title;
+    const slug = (section ? `${article.slug}#${section}` : article.slug) + '.html';
+
+    const tooltipContent = (
+        <Fragment>
+            <p>{article.summary}</p>
+            <br />
+            {article.image !== null ? (
+                <EuiImage url={article.image} alt={linkText} />
+            ) : null}
+        </Fragment>
+    );
+
+    if (tooltip) {
+        return (
+            <EuiToolTip
+                title={article.title}
+                content={tooltipContent}
+                position="bottom">
+                <a href={slug}>{linkText}</a>
+            </EuiToolTip>
+        );
+    } else {
+        return <a href={slug}>{linkText}</a>;
+    }
 };

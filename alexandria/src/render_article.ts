@@ -6,6 +6,12 @@ import { mdx, MDXProvider } from '@mdx-js/react';
 import ReactDOM  from 'react-dom/server';
 import { join, dirname } from 'path';
 import {ArticleResultSuccess} from "./build";
+// @ts-ignore
+import jsdom from 'jsdom';
+import {AlexandriaContext} from './context';
+import {AlexandriaContextShape, ArticlesMetadata} from './types';
+
+const dom = new jsdom.JSDOM();
 
 const asyncWriteFile = promisify(writeFile);
 const asyncMkdir = promisify(mkdir);
@@ -14,9 +20,6 @@ export interface ComponentMap {
     [name: string]: ComponentType<any>;
 }
 
-// @ts-ignore
-import jsdom from 'jsdom';
-const dom = new jsdom.JSDOM();
 // @ts-ignore
 global.window = dom.window;
 // @ts-ignore
@@ -29,19 +32,28 @@ global.Element = dom.window.Element;
 interface RenderArticleConfig {
     outDir: string;
     article: ArticleResultSuccess;
+    articlesMetadata: ArticlesMetadata;
     components: ComponentMap;
 }
 export async function renderArticle(config: RenderArticleConfig) {
-    const { outDir, article, components } = config;
+    const { outDir, article, components, articlesMetadata } = config;
+
+    const context: AlexandriaContextShape = {
+        articlesMetadata,
+    }
 
     const Component = require(join(outDir, 'articles', `${article.hash}.js`)).default;
     const articleHtml = ReactDOM.renderToStaticMarkup(
         mdx(
-            MDXProvider,
-            {
-                components,
-                children: mdx(Component),
-            },
+            AlexandriaContext.Provider,
+            { value: context },
+            mdx(
+                MDXProvider,
+                {
+                    components,
+                    children: mdx(Component),
+                },
+            )
         )
     );
 

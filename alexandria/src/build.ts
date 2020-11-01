@@ -13,6 +13,7 @@ import remove from 'unist-util-remove';
 // @ts-ignore
 import xxhash from 'xxhash';
 import {ComponentMap, renderArticle} from "./render_article";
+import {ArticleMetadata, ArticlesMetadata} from './types'
 
 const asyncMkdir = promisify(mkdir);
 const asyncReadFile = promisify(readFile);
@@ -45,12 +46,15 @@ export const build = async (config: BuildConfig) => {
 
     await asyncMkdir(articlesOutDir, { recursive: true });
     const articleResults = await processArticles(articles);
+    const articlesMetadata: ArticlesMetadata = {};
 
     for (let i = 0; i < articleResults.length; i++) {
         const articleResult = articleResults[i];
 
         if (articleResult.success === false) {
             console.error(articleResult.error);
+        } else {
+            articlesMetadata[articleResult.meta.id] = articleResult.meta;
         }
     }
 
@@ -58,6 +62,7 @@ export const build = async (config: BuildConfig) => {
         outDir,
         articleResults,
         components,
+        articlesMetadata,
     });
 };
 
@@ -93,12 +98,6 @@ async function processArticle(articlePath: string): Promise<ArticleResult> {
 const mdxCompiler = createCompiler({
     remarkPlugins: [[detectFrontmatter, 'yaml'], extractFrontmatter]
 })
-
-interface ArticleMetadata {
-    id: string;
-    slug: string;
-    title: string;
-}
 
 interface MdxFileResults {
     data: {
@@ -138,10 +137,11 @@ function extractFrontmatter() {
 interface WriteApplicationConfig {
     outDir: string;
     articleResults: ArticleResult[];
+    articlesMetadata: ArticlesMetadata;
     components: ComponentMap;
 }
 async function writeApplication(config: WriteApplicationConfig) {
-    const { outDir, articleResults, components } = config;
+    const { outDir, articleResults, components, articlesMetadata } = config;
 
     for (let i = 0; i < articleResults.length; i++) {
         const articleResult = articleResults[i];
@@ -167,6 +167,7 @@ async function writeApplication(config: WriteApplicationConfig) {
             outDir,
             article: articleResult,
             components,
+            articlesMetadata,
         });
     }
 }
