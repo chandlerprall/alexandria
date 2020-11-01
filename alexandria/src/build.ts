@@ -12,7 +12,7 @@ import { createCompiler } from '@mdx-js/mdx';
 import remove from 'unist-util-remove';
 // @ts-ignore
 import xxhash from 'xxhash';
-import {renderArticle} from "./render_article";
+import {ComponentMap, renderArticle} from "./render_article";
 
 const asyncMkdir = promisify(mkdir);
 const asyncReadFile = promisify(readFile);
@@ -21,6 +21,7 @@ const asyncWriteFile = promisify(writeFile);
 interface BuildConfig {
     outDir: string;
     articles: string[];
+    components: ComponentMap;
 }
 
 export interface ArticleResultSuccess {
@@ -39,7 +40,7 @@ export interface ArticleResultError {
 export type ArticleResult = ArticleResultSuccess | ArticleResultError;
 
 export const build = async (config: BuildConfig) => {
-    const { outDir, articles } = config;
+    const { outDir, articles, components } = config;
     const articlesOutDir = join(outDir, 'articles');
 
     await asyncMkdir(articlesOutDir, { recursive: true });
@@ -56,6 +57,7 @@ export const build = async (config: BuildConfig) => {
     await writeApplication({
         outDir,
         articleResults,
+        components,
     });
 };
 
@@ -120,7 +122,7 @@ async function processMdxArticle(articlePath: string, articleContents: string): 
         hash,
         rawSource: articleContents,
         meta: result.data.frontmatter,
-        jsxContents: `/* @jsx mdx */\nimport { mdx } from '@mdx-js/react';\n${result.contents}`,
+        jsxContents: `/* @jsxRuntime classic */\n/* @jsx mdx */\nimport { mdx } from '@mdx-js/react';\n${result.contents}`,
     };
 }
 
@@ -136,9 +138,10 @@ function extractFrontmatter() {
 interface WriteApplicationConfig {
     outDir: string;
     articleResults: ArticleResult[];
+    components: ComponentMap;
 }
 async function writeApplication(config: WriteApplicationConfig) {
-    const { outDir, articleResults } = config;
+    const { outDir, articleResults, components } = config;
 
     for (let i = 0; i < articleResults.length; i++) {
         const articleResult = articleResults[i];
@@ -163,6 +166,7 @@ async function writeApplication(config: WriteApplicationConfig) {
         renderArticle({
             outDir,
             article: articleResult,
+            components,
         });
     }
 }
