@@ -1,7 +1,7 @@
+import { transform } from '@babel/core';
 import { readFile, writeFile, mkdir } from 'fs';
 import { extname, join } from 'path';
 import { promisify } from 'util';
-import glob from 'glob';
 import detectFrontmatter from 'remark-frontmatter';
 import vfile from 'vfile';
 import visit from 'unist-util-visit';
@@ -12,37 +12,31 @@ import { createCompiler } from '@mdx-js/mdx';
 import remove from 'unist-util-remove';
 // @ts-ignore
 import xxhash from 'xxhash';
-import {buildApplication} from "./build_application";
+import {renderArticle} from "./render_article";
 
 const asyncMkdir = promisify(mkdir);
 const asyncReadFile = promisify(readFile);
 const asyncWriteFile = promisify(writeFile);
-const asyncGlob = promisify(glob);
 
 interface BuildConfig {
     outDir: string;
     articles: string[];
 }
 
-interface ArticleResultSuccess {
+export interface ArticleResultSuccess {
     articlePath: string;
     success: true;
+    hash: string;
     rawSource: string;
     meta: ArticleMetadata;
     jsxContents: string;
 }
-interface ArticleResultError {
+export interface ArticleResultError {
     articlePath: string;
     success: false;
     error: Error;
 }
-type ArticleResult = ArticleResultSuccess | ArticleResultError;
-
-interface Route {
-    id: string;
-    slug: string;
-    articleFile: string;
-}
+export type ArticleResult = ArticleResultSuccess | ArticleResultError;
 
 export const build = async (config: BuildConfig) => {
     const { outDir, articles } = config;
@@ -50,32 +44,19 @@ export const build = async (config: BuildConfig) => {
 
     await asyncMkdir(articlesOutDir, { recursive: true });
     const articleResults = await processArticles(articles);
-    const routes: Route[] = [];
 
     for (let i = 0; i < articleResults.length; i++) {
         const articleResult = articleResults[i];
 
-        if (articleResult.success) {
-            const hash = xxhash.hash64(Buffer.from(articleResult.rawSource), 0xDEADDEAD).toString('base64');
-            const outPath = join(articlesOutDir, `${hash}.js`);
-            asyncWriteFile(outPath, articleResult.jsxContents);
-
-            routes.push({
-                id: articleResult.meta.id,
-                slug: articleResult.meta.slug,
-                articleFile: `${hash}.js`
-            });
-        } else {
+        if (articleResult.success === false) {
             console.error(articleResult.error);
         }
     }
 
     await writeApplication({
         outDir,
-        routes,
+        articleResults,
     });
-
-    await buildApplication({ outDir });
 };
 
 function processArticles(articlesPaths: string[]) {
@@ -131,9 +112,12 @@ async function processMdxArticle(articlePath: string, articleContents: string): 
         })
     });
 
+    const hash = xxhash.hash64(Buffer.from(articleContents), 0xDEADDEAD).toString('base64');
+
     return {
         articlePath,
         success: true,
+        hash,
         rawSource: articleContents,
         meta: result.data.frontmatter,
         jsxContents: `/* @jsx mdx */\nimport { mdx } from '@mdx-js/react';\n${result.contents}`,
@@ -151,19 +135,34 @@ function extractFrontmatter() {
 
 interface WriteApplicationConfig {
     outDir: string;
-    routes: Route[];
+    articleResults: ArticleResult[];
 }
 async function writeApplication(config: WriteApplicationConfig) {
-    const { outDir, routes } = config;
+    const { outDir, articleResults } = config;
 
-    const templateDir = join(__dirname, '..', 'application_template');
-    const templateFiles = await asyncGlob('**/*', { cwd: templateDir });
+    for (let i = 0; i < articleResults.length; i++) {
+        const articleResult = articleResults[i];
+        if (articleResult.success === false) continue;
 
-    for (let i = 0; i < templateFiles.length; i++) {
-        const templateFile = templateFiles[i];
-        const templateFileSource = (await asyncReadFile(join(templateDir, templateFile))).toString();
-        const realizedTemplate = templateFileSource
-            .replace(/{{routes}}/g, JSON.stringify(routes));
-        await asyncWriteFile(join(outDir, templateFile), realizedTemplate);
+        const transformedArticleCode = transform(
+            articleResult.jsxContents,
+            {
+                babelrc: false,
+                presets: [
+                    '@babel/preset-env',
+                    '@babel/preset-react',
+                ]
+            }
+        );
+
+        await asyncWriteFile(
+            join(outDir, 'articles', `${articleResult.hash}.js`),
+            transformedArticleCode!.code!
+        );
+
+        renderArticle({
+            outDir,
+            article: articleResult,
+        });
     }
 }
