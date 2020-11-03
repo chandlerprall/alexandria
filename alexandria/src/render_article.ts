@@ -6,28 +6,15 @@ import { mdx, MDXProvider } from '@mdx-js/react';
 import ReactDOM  from 'react-dom/server';
 import { join, dirname } from 'path';
 import {ArticleResultSuccess} from "./build";
-// @ts-ignore
-import jsdom from 'jsdom';
 import {AlexandriaContext} from './context';
 import {AlexandriaContextShape, ArticlesMetadata} from './types';
-
-const dom = new jsdom.JSDOM();
 
 const asyncWriteFile = promisify(writeFile);
 const asyncMkdir = promisify(mkdir);
 
 export interface ComponentMap {
-    [name: string]: ComponentType<any>;
+    [name: string]: ComponentType<any> | string;
 }
-
-// @ts-ignore
-global.window = dom.window;
-// @ts-ignore
-global.document = dom.window.document;
-// @ts-ignore
-global.navigator = dom.window.navigator;
-// @ts-ignore
-global.Element = dom.window.Element;
 
 interface RenderArticleConfig {
     outDir: string;
@@ -38,8 +25,12 @@ interface RenderArticleConfig {
 export async function renderArticle(config: RenderArticleConfig) {
     const { outDir, article, components, articlesMetadata } = config;
 
+    const dynamics: { [id: string]: any } = {};
     const context: AlexandriaContextShape = {
         articlesMetadata,
+        dynamicsReport: (id, name, props, componentPath) => {
+            dynamics[id] = { name, props, componentPath };
+        }
     }
 
     const Component = require(join(outDir, 'articles', `${article.hash}.js`)).default;
@@ -65,7 +56,8 @@ export async function renderArticle(config: RenderArticleConfig) {
         <link rel="stylesheet" type="text/css" href="/eui_theme_light.css"/>
     </head>
     <body>
-        ${articleHtml}    
+        ${articleHtml}
+        <script type="text/javascript" src="/app.js"></script>
     </body>
 </html>
     `;
@@ -77,4 +69,6 @@ export async function renderArticle(config: RenderArticleConfig) {
         articleHtmlPath,
         withLayoutHtml
     );
+
+    return dynamics;
 }

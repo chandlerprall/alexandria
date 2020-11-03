@@ -1,6 +1,7 @@
+import {createElement, ComponentType, useContext} from 'react';
 import { transform } from '@babel/core';
 import { readFile, writeFile, mkdir } from 'fs';
-import { extname, join } from 'path';
+import { extname, join, dirname, basename, relative } from 'path';
 import { promisify } from 'util';
 import detectFrontmatter from 'remark-frontmatter';
 import vfile from 'vfile';
@@ -12,8 +13,12 @@ import { createCompiler } from '@mdx-js/mdx';
 import remove from 'unist-util-remove';
 // @ts-ignore
 import xxhash from 'xxhash';
+import webpack from 'webpack';
+// @ts-ignore
+import nodeExternals from 'webpack-node-externals';
 import {ComponentMap, renderArticle} from "./render_article";
 import {ArticleMetadata, ArticlesMetadata} from './types'
+import {AlexandriaContext} from "./context";
 
 const asyncMkdir = promisify(mkdir);
 const asyncReadFile = promisify(readFile);
@@ -39,6 +44,15 @@ export interface ArticleResultError {
     error: Error;
 }
 export type ArticleResult = ArticleResultSuccess | ArticleResultError;
+
+const babelConfig = {
+    babelrc: false,
+    presets: [
+        '@babel/preset-typescript',
+        '@babel/preset-env',
+        '@babel/preset-react',
+    ],
+};
 
 export const build = async (config: BuildConfig) => {
     const { outDir, articles, components } = config;
@@ -113,7 +127,7 @@ async function processMdxArticle(articlePath: string, articleContents: string): 
         })
     });
 
-    const hash = xxhash.hash64(Buffer.from(articleContents), 0xDEADDEAD).toString('base64');
+    const hash = xxhash.hash64(Buffer.from(articleContents), 0xDEADDEAD).toString('hex');
 
     return {
         articlePath,
@@ -143,6 +157,8 @@ interface WriteApplicationConfig {
 async function writeApplication(config: WriteApplicationConfig) {
     const { outDir, articleResults, components, articlesMetadata } = config;
 
+    const allDynamics: { [key: string]: any } = {};
+
     for (let i = 0; i < articleResults.length; i++) {
         const articleResult = articleResults[i];
         if (articleResult.success === false) continue;
@@ -150,11 +166,8 @@ async function writeApplication(config: WriteApplicationConfig) {
         const transformedArticleCode = transform(
             articleResult.jsxContents,
             {
-                babelrc: false,
-                presets: [
-                    '@babel/preset-env',
-                    '@babel/preset-react',
-                ]
+                ...babelConfig,
+                filename: articleResult.articlePath
             }
         );
 
@@ -163,11 +176,174 @@ async function writeApplication(config: WriteApplicationConfig) {
             transformedArticleCode!.code!
         );
 
-        renderArticle({
+        const realizedComponents: ComponentMap = {};
+        const componentKeys = Object.keys(components);
+        for (let i = 0; i < componentKeys.length; i++) {
+            const key = componentKeys[i];
+            const component = components[key];
+            if (typeof component === 'string') {
+                realizedComponents[key] = await transformComponent(outDir, key, component);
+            } else {
+                realizedComponents[key] = component;
+            }
+        }
+
+        const articleDynamics = await renderArticle({
             outDir,
             article: articleResult,
-            components,
+            components: realizedComponents,
             articlesMetadata,
         });
+        Object.assign(allDynamics, articleDynamics);
     }
+
+    await asyncWriteFile(
+        join(outDir, 'app.js'),
+        `
+import React from 'react';
+import ReactDOM, { useRef, createPortal } from 'react-dom';
+
+const container = document.createElement('div');
+
+const dynamics = ${JSON.stringify(allDynamics)};
+
+const App = () => {
+    const portals = [];
+    const components = {
+${
+            Object.keys(allDynamics).map(key => `${allDynamics[key].name}: require('${allDynamics[key].name}').default`)
+}
+    };
+    
+    const dynamicsKeys = Object.keys(dynamics);
+    for (let i = 0; i < dynamicsKeys.length; i++) {
+        const key = dynamicsKeys[i];
+        const dynamic = dynamics[key];
+        const { name, props } = dynamic;
+        
+        const Component = components[name];
+        const element = document.getElementById(key);
+        element.innerHTML = '';
+        portals.push(createPortal(<Component {...props}/>, element));
+    }
+    
+    return <>{portals}</>
+};
+
+ReactDOM.render(
+    <App/>,
+    container
+);
+        `
+    );
+
+    const aliases: any = {};
+    const dynamicsKeys = Object.keys(allDynamics);
+    for (let i = 0; i < dynamicsKeys.length; i++) {
+        const key = dynamicsKeys[i];
+        const dynamic = allDynamics[key];
+        aliases[dynamic.name] = dynamic.componentPath;
+    }
+
+    webpack(
+        {
+            mode: 'development',
+
+            context: outDir,
+            entry: './app.js',
+
+            output: {
+                path: join(outDir, 'build'),
+                filename: 'app.js'
+            },
+
+            resolve: {
+                alias: aliases,
+                fallback: {
+                    path: false,
+                }
+            },
+
+            module: {
+                rules: [
+                    {
+                        test: /\.(js|ts|tsx)$/,
+                        exclude: /node_modules/,
+                        loader: 'babel-loader',
+                        options: babelConfig,
+                    }
+                ]
+            }
+        },
+        (err, stats) => {
+            if (err) {
+                console.error(err);
+            } else {
+                if (stats!.hasErrors()) {
+                    const info = stats!.toJson();
+                    console.error(info.errors);
+                } else {
+                    console.log('build complete');
+                }
+            }
+        }
+    )
+}
+
+let nextDynamicsId = 0;
+async function transformComponent(outDir: string, name: string, componentPath: string): Promise<ComponentType<any>> {
+    const sourceDir = dirname(componentPath);
+    const filename = basename(componentPath);
+    const targetDir = join(outDir, 'dynamics', basename(componentPath, extname(filename)));
+    return new Promise((resolve, reject) => {
+        webpack({
+            mode: 'development',
+
+            context: sourceDir,
+            entry: './' + relative(sourceDir, componentPath),
+
+            output: {
+                libraryTarget: 'commonjs2',
+                path: targetDir,
+                filename: 'index.js',
+            },
+
+            target: 'node',
+            externals: [nodeExternals()],
+
+            module: {
+                rules: [
+                    {
+                        test: /\.(js|ts|tsx)$/,
+                        exclude: /node_modules/,
+                        loader: 'babel-loader',
+                        options: babelConfig,
+                    }
+                ]
+            }
+        }, (err, stats) => {
+            if (err) {
+                reject(err);
+            } else {
+                if (stats!.hasErrors()) {
+                    const info = stats!.toJson();
+                    console.error(info.errors);
+                }
+
+                const Component = require(join(targetDir, 'index.js')).default;
+                resolve(({children, ..._props}: any) => {
+                    const {dynamicsReport} = useContext(AlexandriaContext);
+                    const props = JSON.parse(JSON.stringify(_props));
+                    const id = `dynamic-${nextDynamicsId++}`;
+                    dynamicsReport(id, name, props, componentPath);
+
+                    return createElement(
+                        'div',
+                        {id},
+                        createElement(Component, props)
+                    );
+                })
+            }
+        });
+    });
 }

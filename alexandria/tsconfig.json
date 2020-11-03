@@ -4,7 +4,7 @@
     "rootDir": "./src",
     "outDir": "build",
     "declaration": true,
-    "noUnusedLocals": true,
+//    "noUnusedLocals": true,
     "strict": true,
     "moduleResolution": "node",
     "lib": [],
