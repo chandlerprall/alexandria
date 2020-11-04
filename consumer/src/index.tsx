@@ -3,12 +3,13 @@ import React from 'react';
 import { build } from 'alexandria';
 import { join } from 'path';
 import * as glob from 'glob';
-import { EuiLink, EuiTitle } from '@elastic/eui';
+import {EuiLink, EuiPanel, EuiTitle, EuiFlexGroup, EuiFlexItem} from '@elastic/eui';
 import components from './components';
 
 build({
     outDir: join(__dirname, '..', 'out'),
-    articles: glob.sync('**', { cwd: join(__dirname, '..', 'articles'), realpath: true }),
+    layouts: glob.sync('**/*.mdx', { cwd: join(__dirname, '..', 'layouts'), realpath: true }),
+    articles: glob.sync('**/*.mdx', { cwd: join(__dirname, '..', 'articles'), realpath: true }),
     components: {
         ...components,
         h1: ({ children }) => <EuiTitle size="l"><h1>{children}</h1></EuiTitle>,
@@ -19,6 +20,9 @@ build({
                 {props.children}
             </EuiLink>
         ),
+        Panel: EuiPanel,
+        FlexGroup: EuiFlexGroup,
+        FlexItem: EuiFlexItem,
         Tabs: join(__dirname, '..', 'src', 'dynamic', 'tabs.tsx')
     },
 }).catch(console.error);

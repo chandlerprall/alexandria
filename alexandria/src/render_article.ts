@@ -18,12 +18,13 @@ export interface ComponentMap {
 
 interface RenderArticleConfig {
     outDir: string;
+    layout: ArticleResultSuccess;
     article: ArticleResultSuccess;
     articlesMetadata: ArticlesMetadata;
     components: ComponentMap;
 }
 export async function renderArticle(config: RenderArticleConfig) {
-    const { outDir, article, components, articlesMetadata } = config;
+    const { outDir, layout, article, components, articlesMetadata } = config;
 
     const dynamics: { [id: string]: any } = {};
     const context: AlexandriaContextShape = {
@@ -33,6 +34,7 @@ export async function renderArticle(config: RenderArticleConfig) {
         }
     }
 
+    const Layout = require(join(outDir, 'layouts', `${layout.hash}.js`)).default;
     const Component = require(join(outDir, 'articles', `${article.hash}.js`)).default;
     const articleHtml = ReactDOM.renderToStaticMarkup(
         mdx(
@@ -41,8 +43,11 @@ export async function renderArticle(config: RenderArticleConfig) {
             mdx(
                 MDXProvider,
                 {
-                    components,
-                    children: mdx(Component),
+                    components: {
+                        ...components,
+                        Article: Component,
+                    },
+                    children: mdx(Layout),
                 },
             )
         )

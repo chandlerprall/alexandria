@@ -26,6 +26,7 @@ const asyncWriteFile = promisify(writeFile);
 
 interface BuildConfig {
     outDir: string;
+    layouts: string[];
     articles: string[];
     components: ComponentMap;
 }
@@ -55,10 +56,11 @@ const babelConfig = {
 };
 
 export const build = async (config: BuildConfig) => {
-    const { outDir, articles, components } = config;
+    const { outDir, layouts, articles, components } = config;
     const articlesOutDir = join(outDir, 'articles');
 
     await asyncMkdir(articlesOutDir, { recursive: true });
+    const layoutResults = await processLayouts(layouts);
     const articleResults = await processArticles(articles);
     const articlesMetadata: ArticlesMetadata = {};
 
@@ -74,11 +76,22 @@ export const build = async (config: BuildConfig) => {
 
     await writeApplication({
         outDir,
+        layoutResults,
         articleResults,
         components,
         articlesMetadata,
     });
 };
+
+function processLayouts(layoutPaths: string[]) {
+    const layoutPromises: Array<Promise<ArticleResult>> = [];
+
+    for (let i = 0; i < layoutPaths.length; i++) {
+        layoutPromises.push(processArticle(layoutPaths[i]));
+    }
+
+    return Promise.all(layoutPromises);
+}
 
 function processArticles(articlesPaths: string[]) {
     const articlePromises: Array<Promise<ArticleResult>> = [];
@@ -150,14 +163,39 @@ function extractFrontmatter() {
 
 interface WriteApplicationConfig {
     outDir: string;
+    layoutResults: ArticleResult[];
     articleResults: ArticleResult[];
     articlesMetadata: ArticlesMetadata;
     components: ComponentMap;
 }
+function findLayout(layoutResults: ArticleResult[], layoutName: string) {
+    const layoutFilename = `${layoutName}.mdx`;
+    return layoutResults.find(result => {
+        return basename(result.articlePath) === layoutFilename;
+    });
+}
 async function writeApplication(config: WriteApplicationConfig) {
-    const { outDir, articleResults, components, articlesMetadata } = config;
+    const { outDir, layoutResults, articleResults, components, articlesMetadata } = config;
 
     const allDynamics: { [key: string]: any } = {};
+    await asyncMkdir(join(outDir, 'layouts'), { recursive: true });
+    for (let i = 0; i < layoutResults.length; i++) {
+        const layoutResult = layoutResults[i];
+        if (layoutResult.success === false) continue;
+
+        const transformedLayoutCode = transform(
+            layoutResult.jsxContents,
+            {
+                ...babelConfig,
+                filename: layoutResult.articlePath
+            }
+        );
+
+        await asyncWriteFile(
+            join(outDir, 'layouts', `${layoutResult.hash}.js`),
+            transformedLayoutCode!.code!
+        );
+    }
 
     for (let i = 0; i < articleResults.length; i++) {
         const articleResult = articleResults[i];
@@ -188,8 +226,12 @@ async function writeApplication(config: WriteApplicationConfig) {
             }
         }
 
+        const layoutName = articleResult.meta.layout;
+        const layout = (findLayout(layoutResults, layoutName) || findLayout(layoutResults, 'main')) as ArticleResultSuccess;
+
         const articleDynamics = await renderArticle({
             outDir,
+            layout,
             article: articleResult,
             components: realizedComponents,
             articlesMetadata,
