@@ -1,3 +1,5 @@
+import { ComponentType } from 'react';
+
 export interface ArticleMetadata {
     id: string;
     slug: string;
@@ -10,6 +12,7 @@ export interface ArticlesMetadata {
 }
 
 export interface AlexandriaContextShape {
-    articlesMetadata: ArticlesMetadata
-    dynamicsReport: (id: string, definition: Object) => void
+    componentMapToPath: Map<ComponentType, string>;
+    articlesMetadata: ArticlesMetadata;
+    dynamicsReport: (id: string, definition: Object) => void;
 }

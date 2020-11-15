@@ -7,7 +7,7 @@ build({
     outDir: join(__dirname, '..', 'out'),
     layouts: glob.sync('**/*.mdx', { cwd: join(__dirname, '..', 'layouts'), realpath: true }),
     articles: glob.sync('**/*.mdx', { cwd: join(__dirname, '..', 'articles'), realpath: true }),
-    components: glob.sync('**/*.tsx', { cwd: join(__dirname, '..', 'components'), realpath: true }),
+    componentsDir: join(__dirname, '..', 'components'),
     // components: {
     //     ...components,
     //     h1: ({ children }) => <EuiTitle size="l"><h1>{children}</h1></EuiTitle>,

@@ -3,7 +3,7 @@ import { EuiAccordion, EuiAccordionProps } from '@elastic/eui/lib/components/acc
 
 const Accordion: FunctionComponent<EuiAccordionProps> = (({ children, ...props }) => {
   return (
-    <EuiAccordion {...props}>{children}</EuiAccordion>
+      <EuiAccordion {...props}>{children}</EuiAccordion>
   );
 });
 

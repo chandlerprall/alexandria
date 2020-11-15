@@ -13,7 +13,7 @@ const asyncWriteFile = promisify(writeFile);
 const asyncMkdir = promisify(mkdir);
 
 export interface ComponentMap {
-    [name: string]: ComponentType<any> | string;
+    [name: string]: ComponentType<any>;
 }
 
 interface RenderArticleConfig {
@@ -22,12 +22,14 @@ interface RenderArticleConfig {
     article: ArticleResultSuccess;
     articlesMetadata: ArticlesMetadata;
     components: ComponentMap;
+    componentMapToPath: Map<ComponentType, string>;
 }
 export async function renderArticle(config: RenderArticleConfig) {
-    const { outDir, layout, article, components, articlesMetadata } = config;
+    const { outDir, layout, article, components, articlesMetadata, componentMapToPath } = config;
 
     const dynamics: { [id: string]: any } = {};
     const context: AlexandriaContextShape = {
+        componentMapToPath,
         articlesMetadata,
         dynamicsReport: (id, definition: Object) => {
             dynamics[id] = definition;

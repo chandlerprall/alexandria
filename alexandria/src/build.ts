@@ -20,6 +20,7 @@ import {ComponentMap, renderArticle} from './render_article';
 import {ArticleMetadata, ArticlesMetadata} from './types'
 import {AlexandriaContext} from "./context";
 import { Dynamic } from './dynamic';
+import * as glob from 'glob';
 
 const asyncMkdir = promisify(mkdir);
 const asyncReadFile = promisify(readFile);
@@ -29,7 +30,7 @@ interface BuildConfig {
     outDir: string;
     layouts: string[];
     articles: string[];
-    components: string[];
+    componentsDir: string;
 }
 
 export interface ArticleResultSuccess {
@@ -57,12 +58,12 @@ const babelConfig = {
 };
 
 export const build = async (config: BuildConfig) => {
-    const { outDir, layouts, articles, components } = config;
+    const { outDir, layouts, articles, componentsDir } = config;
 
     // transpile components
     const componentsOutDir = join(outDir, 'components');
     await asyncMkdir(componentsOutDir, { recursive: true });
-    const {pathedComponents, realizedComponents} = await processComponents(componentsOutDir, components);
+    const {pathedComponents, realizedComponents} = await processComponents(componentsDir, componentsOutDir);
 
     // build articles
     const articlesOutDir = join(outDir, 'articles');
@@ -91,15 +92,19 @@ export const build = async (config: BuildConfig) => {
     });
 };
 
-async function processComponents(componentsOutDir: string, componentPaths: string[]) {
+async function processComponents(componentsSourceDir: string, componentsOutDir: string) {
     const realizedComponents: ComponentMap = {};
     const pathedComponents: { [name: string]: string } = {};
+
+    const componentPaths = glob.sync('**/*.tsx', { cwd: componentsSourceDir, realpath: true });
 
     for (let i = 0; i < componentPaths.length; i++) {
         const componentPath = componentPaths[i];
         const extension = extname(componentPath);
         const componentBaseName = basename(componentPath, extension);
-        const componentOutPath = join(componentsOutDir, `${componentBaseName}.js`);
+        const componentRelativePath = dirname(relative(componentsSourceDir, componentPath));
+        const componentOutDir = join(componentsOutDir, componentRelativePath);
+        const componentOutPath = join(componentOutDir, `${componentBaseName}.js`);
 
         const componentSource = (await asyncReadFile(componentPath)).toString();
         const transformedCode = transform(
@@ -109,6 +114,8 @@ async function processComponents(componentsOutDir: string, componentPaths: strin
               filename: componentPath,
           }
         );
+
+        await asyncMkdir(componentOutDir, { recursive: true });
 
         await asyncWriteFile(
           componentOutPath,
@@ -217,6 +224,13 @@ function findLayout(layoutResults: ArticleResult[], layoutName: string) {
 async function writeApplication(config: WriteApplicationConfig) {
     const { outDir, layoutResults, articleResults, components, componentMap, articlesMetadata } = config;
 
+    const componentMapToPath = new Map<ComponentType, string>();
+    const availableComponents = Object.keys(components);
+    for (let i = 0; i < availableComponents.length; i++) {
+        const componentName = availableComponents[i];
+        componentMapToPath.set(componentMap[componentName], componentName);
+    }
+
     const allDynamics: { [key: string]: any } = {};
 
     await asyncMkdir(join(outDir, 'layouts'), { recursive: true });
@@ -267,6 +281,7 @@ async function writeApplication(config: WriteApplicationConfig) {
                 Dynamic,
             },
             articlesMetadata,
+            componentMapToPath,
         });
         Object.assign(allDynamics, articleDynamics);
     }
@@ -277,8 +292,10 @@ async function writeApplication(config: WriteApplicationConfig) {
                 getUsedComponents(definition[i], usedComponents);
             }
         } else {
-            usedComponents.add(definition.component);
-            if (definition.props.children) getUsedComponents(definition.props.children, usedComponents);
+            if (components.hasOwnProperty(definition.component)) {
+                usedComponents.add(definition.component);
+            }
+            if (definition.props?.children) getUsedComponents(definition.props.children, usedComponents);
         }
     }
 
@@ -311,11 +328,24 @@ ${
 }
     };
     
-    function hydrateComponent(definition) {
+    function hydrateComponent(definition, key) {
         if (definition == null) return null;
         
-        const { component, props: { children, ...props } } = definition;
-        const Component = components[component];
+        if (Array.isArray(definition)) {
+        	return (
+        		<>
+        		    {definition.map(hydrateComponent)}
+        		</>
+        	);
+        }
+        
+        if (typeof definition === 'string') return definition;
+        
+        const { component, props: { children, ...props } = {} } = definition;
+        const Component = components[component] || component;
+        
+        props.key = key;
+        
         return <Component {...props}>{hydrateComponent(children)}</Component>;
     }
     
@@ -323,12 +353,10 @@ ${
     for (let i = 0; i < dynamicsKeys.length; i++) {
         const key = dynamicsKeys[i];
         const element = document.getElementById(key);
+        if (element == null) continue;
         const definition = dynamics[key];
-        // const { component, props: { children, ...props } } = definition;
         
-        // const Component = components[component];
         element.innerHTML = '';
-        // portals.push(createPortal(<Component {...props}>{hydrateComponent(children)}</Component>, element));
         portals.push(createPortal(hydrateComponent(definition), element));
     }
     

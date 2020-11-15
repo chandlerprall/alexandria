@@ -7,11 +7,19 @@ title: Test Page
 
 For. Real.
 
-<Dynamic>
-    <Accordion id="test" buttonContent="Expand">
-        <Tabs tabs={[
-            {id: 'js', name:'JavaScript', content: 'console.log("Hello, World!")'},
-            {id: 'python', name:'Python', content: 'print("Hello, World!")'},
-        ]} />
-    </Accordion>
-</Dynamic>
+<DocAccordion id="test" buttonContent="Expand">
+    <Tabs tabs={[
+        {id: 'js', name:'JavaScript', content: 'console.log("Hello, World!")'},
+        {id: 'python', name:'Python', content: 'print("Hello, World!")'},
+    ]} />
+</DocAccordion>
+
+<DocAccordion id="test2" buttonContent="Click me for fun stuff" initialIsOpen>
+  This accordion is open initially by using `initialIsOpen`
+
+  <DocAccordion id="test3" buttonContent="A nested example">
+    This is a really bad idea, so don't do it often
+  </DocAccordion>
+</DocAccordion>
+
+# Second content
