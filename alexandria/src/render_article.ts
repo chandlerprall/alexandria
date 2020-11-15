@@ -29,8 +29,8 @@ export async function renderArticle(config: RenderArticleConfig) {
     const dynamics: { [id: string]: any } = {};
     const context: AlexandriaContextShape = {
         articlesMetadata,
-        dynamicsReport: (id, name, props, componentPath) => {
-            dynamics[id] = { name, props, componentPath };
+        dynamicsReport: (id, definition: Object) => {
+            dynamics[id] = definition;
         }
     }
 

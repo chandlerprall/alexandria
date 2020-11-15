@@ -16,9 +16,10 @@ import xxhash from 'xxhash';
 import webpack from 'webpack';
 // @ts-ignore
 import nodeExternals from 'webpack-node-externals';
-import {ComponentMap, renderArticle} from "./render_article";
+import {ComponentMap, renderArticle} from './render_article';
 import {ArticleMetadata, ArticlesMetadata} from './types'
 import {AlexandriaContext} from "./context";
+import { Dynamic } from './dynamic';
 
 const asyncMkdir = promisify(mkdir);
 const asyncReadFile = promisify(readFile);
@@ -28,7 +29,7 @@ interface BuildConfig {
     outDir: string;
     layouts: string[];
     articles: string[];
-    components: ComponentMap;
+    components: string[];
 }
 
 export interface ArticleResultSuccess {
@@ -57,8 +58,14 @@ const babelConfig = {
 
 export const build = async (config: BuildConfig) => {
     const { outDir, layouts, articles, components } = config;
-    const articlesOutDir = join(outDir, 'articles');
 
+    // transpile components
+    const componentsOutDir = join(outDir, 'components');
+    await asyncMkdir(componentsOutDir, { recursive: true });
+    const {pathedComponents, realizedComponents} = await processComponents(componentsOutDir, components);
+
+    // build articles
+    const articlesOutDir = join(outDir, 'articles');
     await asyncMkdir(articlesOutDir, { recursive: true });
     const layoutResults = await processLayouts(layouts);
     const articleResults = await processArticles(articles);
@@ -78,10 +85,42 @@ export const build = async (config: BuildConfig) => {
         outDir,
         layoutResults,
         articleResults,
-        components,
+        components: pathedComponents,
+        componentMap: realizedComponents,
         articlesMetadata,
     });
 };
+
+async function processComponents(componentsOutDir: string, componentPaths: string[]) {
+    const realizedComponents: ComponentMap = {};
+    const pathedComponents: { [name: string]: string } = {};
+
+    for (let i = 0; i < componentPaths.length; i++) {
+        const componentPath = componentPaths[i];
+        const extension = extname(componentPath);
+        const componentBaseName = basename(componentPath, extension);
+        const componentOutPath = join(componentsOutDir, `${componentBaseName}.js`);
+
+        const componentSource = (await asyncReadFile(componentPath)).toString();
+        const transformedCode = transform(
+          componentSource,
+          {
+              ...babelConfig,
+              filename: componentPath,
+          }
+        );
+
+        await asyncWriteFile(
+          componentOutPath,
+          transformedCode!.code!
+        );
+
+        realizedComponents[componentBaseName] = require(componentOutPath).default;
+        pathedComponents[componentBaseName] = componentOutPath;
+    }
+
+    return { pathedComponents, realizedComponents };
+}
 
 function processLayouts(layoutPaths: string[]) {
     const layoutPromises: Array<Promise<ArticleResult>> = [];
@@ -166,7 +205,8 @@ interface WriteApplicationConfig {
     layoutResults: ArticleResult[];
     articleResults: ArticleResult[];
     articlesMetadata: ArticlesMetadata;
-    components: ComponentMap;
+    components: { [name: string]: string };
+    componentMap: ComponentMap;
 }
 function findLayout(layoutResults: ArticleResult[], layoutName: string) {
     const layoutFilename = `${layoutName}.mdx`;
@@ -175,9 +215,10 @@ function findLayout(layoutResults: ArticleResult[], layoutName: string) {
     });
 }
 async function writeApplication(config: WriteApplicationConfig) {
-    const { outDir, layoutResults, articleResults, components, articlesMetadata } = config;
+    const { outDir, layoutResults, articleResults, components, componentMap, articlesMetadata } = config;
 
     const allDynamics: { [key: string]: any } = {};
+
     await asyncMkdir(join(outDir, 'layouts'), { recursive: true });
     for (let i = 0; i < layoutResults.length; i++) {
         const layoutResult = layoutResults[i];
@@ -214,18 +255,6 @@ async function writeApplication(config: WriteApplicationConfig) {
             transformedArticleCode!.code!
         );
 
-        const realizedComponents: ComponentMap = {};
-        const componentKeys = Object.keys(components);
-        for (let i = 0; i < componentKeys.length; i++) {
-            const key = componentKeys[i];
-            const component = components[key];
-            if (typeof component === 'string') {
-                realizedComponents[key] = await transformComponent(outDir, key, component);
-            } else {
-                realizedComponents[key] = component;
-            }
-        }
-
         const layoutName = articleResult.meta.layout;
         const layout = (findLayout(layoutResults, layoutName) || findLayout(layoutResults, 'main')) as ArticleResultSuccess;
 
@@ -233,11 +262,36 @@ async function writeApplication(config: WriteApplicationConfig) {
             outDir,
             layout,
             article: articleResult,
-            components: realizedComponents,
+            components: {
+                ...componentMap,
+                Dynamic,
+            },
             articlesMetadata,
         });
         Object.assign(allDynamics, articleDynamics);
     }
+
+    function getUsedComponents(definition: any, usedComponents: Set<string>) {
+        if (Array.isArray(definition)) {
+            for (let i = 0; i < definition.length; i++) {
+                getUsedComponents(definition[i], usedComponents);
+            }
+        } else {
+            usedComponents.add(definition.component);
+            if (definition.props.children) getUsedComponents(definition.props.children, usedComponents);
+        }
+    }
+
+    const usedComponents = Array.from(
+      Object.keys(allDynamics).reduce(
+          (usedComponents, dynamicsName) => {
+              const definition = allDynamics[dynamicsName];
+              getUsedComponents(definition, usedComponents);
+              return usedComponents;
+          },
+          new Set<string>()
+        )
+    );
 
     await asyncWriteFile(
         join(outDir, 'app.js'),
@@ -253,20 +307,29 @@ const App = () => {
     const portals = [];
     const components = {
 ${
-            Object.keys(allDynamics).map(key => `${allDynamics[key].name}: require('${allDynamics[key].name}').default`)
+            usedComponents.map(key => `'${key}': require('${key}').default`)
 }
     };
+    
+    function hydrateComponent(definition) {
+        if (definition == null) return null;
+        
+        const { component, props: { children, ...props } } = definition;
+        const Component = components[component];
+        return <Component {...props}>{hydrateComponent(children)}</Component>;
+    }
     
     const dynamicsKeys = Object.keys(dynamics);
     for (let i = 0; i < dynamicsKeys.length; i++) {
         const key = dynamicsKeys[i];
-        const dynamic = dynamics[key];
-        const { name, props } = dynamic;
-        
-        const Component = components[name];
         const element = document.getElementById(key);
+        const definition = dynamics[key];
+        // const { component, props: { children, ...props } } = definition;
+        
+        // const Component = components[component];
         element.innerHTML = '';
-        portals.push(createPortal(<Component {...props}/>, element));
+        // portals.push(createPortal(<Component {...props}>{hydrateComponent(children)}</Component>, element));
+        portals.push(createPortal(hydrateComponent(definition), element));
     }
     
     return <>{portals}</>
@@ -279,13 +342,13 @@ ReactDOM.render(
         `
     );
 
-    const aliases: any = {};
-    const dynamicsKeys = Object.keys(allDynamics);
-    for (let i = 0; i < dynamicsKeys.length; i++) {
-        const key = dynamicsKeys[i];
-        const dynamic = allDynamics[key];
-        aliases[dynamic.name] = dynamic.componentPath;
-    }
+    const aliases = usedComponents.reduce<any>(
+      (aliases, componentName) => {
+          aliases[componentName] = components[componentName];
+          return aliases;
+      },
+      {}
+    );
 
     webpack(
         {
@@ -330,62 +393,4 @@ ReactDOM.render(
             }
         }
     )
-}
-
-let nextDynamicsId = 0;
-async function transformComponent(outDir: string, name: string, componentPath: string): Promise<ComponentType<any>> {
-    const sourceDir = dirname(componentPath);
-    const filename = basename(componentPath);
-    const targetDir = join(outDir, 'dynamics', basename(componentPath, extname(filename)));
-    return new Promise((resolve, reject) => {
-        webpack({
-            mode: 'development',
-
-            context: sourceDir,
-            entry: './' + relative(sourceDir, componentPath),
-
-            output: {
-                libraryTarget: 'commonjs2',
-                path: targetDir,
-                filename: 'index.js',
-            },
-
-            target: 'node',
-            externals: [nodeExternals()],
-
-            module: {
-                rules: [
-                    {
-                        test: /\.(js|ts|tsx)$/,
-                        exclude: /node_modules/,
-                        loader: 'babel-loader',
-                        options: babelConfig,
-                    }
-                ]
-            }
-        }, (err, stats) => {
-            if (err) {
-                reject(err);
-            } else {
-                if (stats!.hasErrors()) {
-                    const info = stats!.toJson();
-                    console.error(info.errors);
-                }
-
-                const Component = require(join(targetDir, 'index.js')).default;
-                resolve(({children, ..._props}: any) => {
-                    const {dynamicsReport} = useContext(AlexandriaContext);
-                    const props = JSON.parse(JSON.stringify(_props));
-                    const id = `dynamic-${nextDynamicsId++}`;
-                    dynamicsReport(id, name, props, componentPath);
-
-                    return createElement(
-                        'div',
-                        {id},
-                        createElement(Component, props)
-                    );
-                })
-            }
-        });
-    });
 }

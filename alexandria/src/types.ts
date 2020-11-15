@@ -11,5 +11,5 @@ export interface ArticlesMetadata {
 
 export interface AlexandriaContextShape {
     articlesMetadata: ArticlesMetadata
-    dynamicsReport: (id: string, name: string, props: any, componentPath: string) => void
+    dynamicsReport: (id: string, definition: Object) => void
 }
