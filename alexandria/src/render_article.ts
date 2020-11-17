@@ -50,8 +50,8 @@ export async function renderArticle(config: RenderArticleConfig) {
                         ...components,
                         Article: Component,
                     },
-                    children: mdx(Layout),
                 },
+                mdx(Layout)
             )
         )
     );
