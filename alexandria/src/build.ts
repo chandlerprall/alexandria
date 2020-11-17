@@ -1,4 +1,4 @@
-import {createElement, ComponentType, useContext} from 'react';
+import {ComponentType} from 'react';
 import { transform } from '@babel/core';
 import { readFile, writeFile, mkdir } from 'fs';
 import { extname, join, dirname, basename, relative } from 'path';
@@ -18,7 +18,6 @@ import webpack from 'webpack';
 import nodeExternals from 'webpack-node-externals';
 import {ComponentMap, renderArticle} from './render_article';
 import {ArticleMetadata, ArticlesMetadata} from './types'
-import {AlexandriaContext} from "./context";
 import { Dynamic } from './dynamic';
 import * as glob from 'glob';
 
@@ -96,7 +95,7 @@ async function processComponents(componentsSourceDir: string, componentsOutDir: 
     const realizedComponents: ComponentMap = {};
     const pathedComponents: { [name: string]: string } = {};
 
-    const componentPaths = glob.sync('**/*.tsx', { cwd: componentsSourceDir, realpath: true });
+    const componentPaths = glob.sync('**/*.ts?(x)', { cwd: componentsSourceDir, realpath: true });
 
     for (let i = 0; i < componentPaths.length; i++) {
         const componentPath = componentPaths[i];
@@ -121,9 +120,23 @@ async function processComponents(componentsSourceDir: string, componentsOutDir: 
           componentOutPath,
           transformedCode!.code!
         );
+    }
 
-        realizedComponents[componentBaseName] = require(componentOutPath).default;
-        pathedComponents[componentBaseName] = componentOutPath;
+    // now that all of the files are transpiled, load the components
+    for (let i = 0; i < componentPaths.length; i++) {
+        const componentPath = componentPaths[i];
+        const extension = extname(componentPath);
+        const componentBaseName = basename(componentPath, extension);
+        const componentRelativePath = dirname(relative(componentsSourceDir, componentPath));
+        const componentOutDir = join(componentsOutDir, componentRelativePath);
+        const componentOutPath = join(componentOutDir, `${componentBaseName}.js`);
+
+        const component = require(componentOutPath).default;
+
+        if (component) {
+            realizedComponents[componentBaseName] = component;
+            pathedComponents[componentBaseName] = componentOutPath;
+        }
     }
 
     return { pathedComponents, realizedComponents };

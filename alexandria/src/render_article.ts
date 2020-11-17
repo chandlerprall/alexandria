@@ -38,6 +38,7 @@ export async function renderArticle(config: RenderArticleConfig) {
 
     const Layout = require(join(outDir, 'layouts', `${layout.hash}.js`)).default;
     const Component = require(join(outDir, 'articles', `${article.hash}.js`)).default;
+
     const articleHtml = ReactDOM.renderToStaticMarkup(
         mdx(
             AlexandriaContext.Provider,
