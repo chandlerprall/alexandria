@@ -30,6 +30,7 @@ interface BuildConfig {
     layouts: string[];
     articles: string[];
     componentsDir: string;
+    template: string;
 }
 
 export interface ArticleResultSuccess {
@@ -57,7 +58,7 @@ const babelConfig = {
 };
 
 export const build = async (config: BuildConfig) => {
-    const { outDir, layouts, articles, componentsDir } = config;
+    const { outDir, layouts, articles, componentsDir, template } = config;
 
     // transpile components
     const componentsOutDir = join(outDir, 'components');
@@ -88,6 +89,7 @@ export const build = async (config: BuildConfig) => {
         components: pathedComponents,
         componentMap: realizedComponents,
         articlesMetadata,
+        template,
     });
 };
 
@@ -227,6 +229,7 @@ interface WriteApplicationConfig {
     articlesMetadata: ArticlesMetadata;
     components: { [name: string]: string };
     componentMap: ComponentMap;
+    template: string;
 }
 function findLayout(layoutResults: ArticleResult[], layoutName: string) {
     const layoutFilename = `${layoutName}.mdx`;
@@ -235,7 +238,7 @@ function findLayout(layoutResults: ArticleResult[], layoutName: string) {
     });
 }
 async function writeApplication(config: WriteApplicationConfig) {
-    const { outDir, layoutResults, articleResults, components, componentMap, articlesMetadata } = config;
+    const { outDir, layoutResults, articleResults, components, componentMap, articlesMetadata, template } = config;
 
     const componentMapToPath = new Map<ComponentType, string>();
     const availableComponents = Object.keys(components);
@@ -295,6 +298,7 @@ async function writeApplication(config: WriteApplicationConfig) {
             },
             articlesMetadata,
             componentMapToPath,
+            template,
         });
         Object.assign(allDynamics, articleDynamics);
     }

@@ -23,9 +23,10 @@ interface RenderArticleConfig {
     articlesMetadata: ArticlesMetadata;
     components: ComponentMap;
     componentMapToPath: Map<ComponentType, string>;
+    template: string;
 }
 export async function renderArticle(config: RenderArticleConfig) {
-    const { outDir, layout, article, components, articlesMetadata, componentMapToPath } = config;
+    const { outDir, layout, article, components, articlesMetadata, componentMapToPath, template } = config;
 
     const dynamics: { [id: string]: any } = {};
     const context: AlexandriaContextShape = {
@@ -56,21 +57,11 @@ export async function renderArticle(config: RenderArticleConfig) {
         )
     );
 
-    const withLayoutHtml = `
-<!DOCTYPE html>
-<html>
-    <head>
-        <title>${article.meta.title}</title>
-        <link rel="stylesheet" type="text/css" href="/eui_theme_light.css"/>
-    </head>
-    <body>
-        ${articleHtml}
-        <script type="text/javascript" src="/app.js"></script>
-    </body>
-</html>
-    `;
+    const withLayoutHtml = template
+      .replace('${title}', article.meta.title)
+      .replace('${article}', articleHtml);
 
-    const articleHtmlPath = join(outDir, 'build', `${article.meta.slug}.html`)
+    const articleHtmlPath = join(outDir, 'build', article.meta.slug, 'index.html');
     const articleHtmlDir = dirname(articleHtmlPath);
     await asyncMkdir(articleHtmlDir, { recursive: true });
     await asyncWriteFile(
