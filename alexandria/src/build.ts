@@ -7,7 +7,7 @@ import detectFrontmatter from "remark-frontmatter";
 import vfile from "vfile";
 import visit from "unist-util-visit";
 import * as yaml from "yaml";
-import { copy } from 'fs-extra';
+import { copy } from "fs-extra";
 // @ts-ignore
 import { createCompiler } from "@mdx-js/mdx";
 // @ts-ignore
@@ -31,7 +31,7 @@ interface BuildConfig {
 	articles: string[];
 	componentsDir: string;
 	template: string;
-  publicDir: string;
+	publicDir: string;
 }
 
 export interface ArticleResultSuccess {
@@ -51,7 +51,15 @@ export type ArticleResult = ArticleResultSuccess | ArticleResultError;
 
 const babelConfig = {
 	babelrc: false,
-	presets: ["@babel/preset-typescript", "@babel/preset-env", "@babel/preset-react"],
+	presets: ["@babel/preset-typescript", "@babel/preset-env", "@babel/preset-react", "@emotion/babel-preset-css-prop"],
+	plugins: [
+		[
+			"@emotion/babel-plugin",
+			{
+				sourceMap: false,
+			},
+		],
+	],
 };
 
 export const build = async (config: BuildConfig) => {
@@ -89,8 +97,8 @@ export const build = async (config: BuildConfig) => {
 		template,
 	});
 
-    // copy publicDir files
-    await copy(publicDir, join(outDir, 'build') );
+	// copy publicDir files
+	await copy(publicDir, join(outDir, "build"));
 };
 
 async function processComponents(componentsSourceDir: string, componentsOutDir: string) {
