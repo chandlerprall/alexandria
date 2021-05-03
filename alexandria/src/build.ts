@@ -55,7 +55,16 @@ const babelConfig = {
         '@babel/preset-typescript',
         '@babel/preset-env',
         '@babel/preset-react',
+        '@emotion/babel-preset-css-prop',
     ],
+    plugins: [
+        [
+            '@emotion/babel-plugin',
+            {
+                sourceMap: false,
+            }
+        ],
+    ]
 };
 
 export const build = async (config: BuildConfig) => {

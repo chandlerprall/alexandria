@@ -103,6 +103,7 @@ nav .navlink {
 /** End PageCentered **/
 
 /** Card **/
+/*
 .cardSection {
     display: flex;
     justify-content: space-between;
@@ -167,4 +168,5 @@ nav .navlink {
         flex-basis: 30%;
     }
 }
+ */
 /** End Card **/
