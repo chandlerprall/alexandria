@@ -1,10 +1,11 @@
-import { writeFile, mkdir } from 'fs';
+import { writeFile, mkdir } from 'fs'
 import { promisify } from 'util';
-import { ComponentType } from 'react';
+import React, { ComponentType } from 'react';
 // @ts-ignore
 import { mdx, MDXProvider } from '@mdx-js/react';
 import ReactDOM  from 'react-dom/server';
 import { join, dirname } from 'path';
+import Helmet from 'react-helmet';
 import {ArticleResultSuccess} from "./build";
 import {AlexandriaContext} from './context';
 import {AlexandriaContextShape, ArticlesMetadata} from './types';
@@ -50,16 +51,38 @@ export async function renderArticle(config: RenderArticleConfig) {
                     components: {
                         ...components,
                         Article: Component,
+                        Style: (props) => <Helmet><style {...props} /></Helmet>,
+                        Link: (props) => <Helmet><link {...props} /></Helmet>,
                     },
                 },
                 mdx(Layout)
             )
         )
     );
+    const helmet = Helmet.renderStatic();
 
+    /*
     const withLayoutHtml = template
       .replace('${title}', article.meta.title)
       .replace('${article}', articleHtml);
+    */
+    const withLayoutHtml = `
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>${article.meta.title}</title>
+        ${helmet.meta.toString()}
+        ${helmet.link.toString()}
+        ${helmet.noscript.toString()}
+        ${helmet.script.toString()}
+        ${helmet.style.toString()}
+    </head>
+    <body>
+        ${articleHtml}
+        <script type="text/javascript" src="/app.js"></script>
+    </body>
+</html>
+    `;
 
     const articleHtmlPath = join(outDir, 'build', article.meta.slug, 'index.html');
     const articleHtmlDir = dirname(articleHtmlPath);

@@ -7,6 +7,7 @@ import detectFrontmatter from "remark-frontmatter";
 import vfile from "vfile";
 import visit from "unist-util-visit";
 import * as yaml from "yaml";
+import { copy } from 'fs-extra';
 // @ts-ignore
 import { createCompiler } from "@mdx-js/mdx";
 // @ts-ignore
@@ -30,6 +31,7 @@ interface BuildConfig {
 	articles: string[];
 	componentsDir: string;
 	template: string;
+  publicDir: string;
 }
 
 export interface ArticleResultSuccess {
@@ -53,7 +55,7 @@ const babelConfig = {
 };
 
 export const build = async (config: BuildConfig) => {
-	const { outDir, layouts, articles, componentsDir, template } = config;
+	const { outDir, layouts, articles, componentsDir, template, publicDir } = config;
 
 	// transpile components
 	const componentsOutDir = join(outDir, "components");
@@ -86,6 +88,9 @@ export const build = async (config: BuildConfig) => {
 		articlesMetadata,
 		template,
 	});
+
+    // copy publicDir files
+    await copy(publicDir, join(outDir, 'build') );
 };
 
 async function processComponents(componentsSourceDir: string, componentsOutDir: string) {

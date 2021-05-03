@@ -1,0 +1,170 @@
+html {
+    margin: 0;
+    padding: 0;
+    color: #2f2f2f;
+    font-family: Verdana;
+    font-size: 14px;
+}
+
+body {
+    margin: 0;
+    padding-top: 105px;
+    width: 100%;
+    overflow-x: hidden;
+    background-color: #f3f3f3;
+}
+
+/** Anchors **/
+a {
+    color: #417690;
+    text-decoration: none;
+}
+
+a:hover {
+ color: #54afb7;
+}
+/** End Anchors **/
+
+/** Header **/
+.centered {
+	display: flex;
+	align-items: flex-end;
+	flex-wrap: wrap;
+}
+
+header {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	padding: 0 0 10px;
+	border-bottom: 3px solid #868686;
+	background-color: #d6ecd5;
+	color: #212121;
+}
+
+h1 {
+	margin: 0;
+	padding: 0;
+	font-weight: normal;
+}
+
+nav {
+    margin-left: 20px;
+    text-align: right;
+}
+
+nav.textLinks {
+    flex-grow: 1;
+    order: 2;
+}
+
+nav.mediaLinks {
+    order: 3;
+}
+
+nav .navlink {
+    margin: 0 12px;
+    font-size: 1.5rem;
+    font-variant: small-caps;
+}
+
+@media (max-width: 800px) {
+	nav {
+		margin-left: 0;
+		text-align: left;
+	}
+
+    nav.textLinks {
+        order: 3;
+    }
+
+    nav.mediaLinks {
+        order: 2;
+        margin-left: 20px;
+    }
+
+    nav .navlink:first-child {
+        margin-left: 0;
+    }
+
+	sub {
+		display: none;
+	}
+}
+/** End Header **/
+
+/** PageCentered **/
+.pageCentered {
+    margin: 0 auto;
+    padding: 0 10px;
+    max-width: 1000px;
+}
+/** End PageCentered **/
+
+/** Card **/
+.cardSection {
+    display: flex;
+    justify-content: space-between;
+    flex-basis: 100%;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+}
+
+.cardSection .cardTitle {
+    flex-basis: 100%;
+    order: 0;
+}
+
+.cardSection .cardContent {
+    flex-basis: 100%;
+    order: 2;
+    margin-top: 0;
+}
+
+.cardSection .cardContent .sectionLink:nth-child(2) {
+    float: right;
+}
+
+.cardSection .cardImage {
+    flex-basis: 100%;
+    order: 1;
+}
+
+.cardSection .cardImage img {
+    box-shadow: 1px 4px 10px 0 #444;
+    max-width: 100%;
+}
+
+@media (min-width: 768px) {
+    .cardSection {
+        flex-basis: 45%;
+    }
+
+    .cardSection:nth-child(-n+2) {
+        flex-basis: 100%;
+    }
+
+    .cardSection:nth-child(-n+2) .cardTitle {
+        flex-basis: 55%;
+        height: 0;
+    }
+
+    .cardSection:nth-child(-n+2) .cardContent {
+        flex-basis: 55%;
+        order: 1;
+        margin-top: 2.5rem;
+    }
+
+    .cardSection:nth-child(-n+2) .cardImage {
+        flex-basis: 40%;
+        order: 2;
+    }
+}
+
+@media (min-width: 850px) {
+    .cardSection {
+        flex-basis: 30%;
+    }
+}
+/** End Card **/
