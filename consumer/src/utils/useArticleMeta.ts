@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { AlexandriaContext, ArticleMetadata } from 'alexandria';
+import { AlexandriaContext, ArticleMetadata } from '@sagebrush/alexandria';
 
 export const useArticleMeta = (id: string): ArticleMetadata | undefined => {
     const { articlesMetadata } = useContext(AlexandriaContext);

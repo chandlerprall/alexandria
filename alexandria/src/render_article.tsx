@@ -1,10 +1,11 @@
-import { writeFile, mkdir } from 'fs';
+import { writeFile, mkdir } from 'fs'
 import { promisify } from 'util';
-import { ComponentType } from 'react';
+import React, { ComponentType } from 'react';
 // @ts-ignore
 import { mdx, MDXProvider } from '@mdx-js/react';
 import ReactDOM  from 'react-dom/server';
 import { join, dirname } from 'path';
+import Helmet from 'react-helmet';
 import {ArticleResultSuccess} from "./build";
 import {AlexandriaContext} from './context';
 import {AlexandriaContextShape, ArticlesMetadata} from './types';
@@ -49,19 +50,26 @@ export async function renderArticle(config: RenderArticleConfig) {
                     components: {
                         ...components,
                         Article: Component,
+                        Style: (props) => <Helmet><style {...props} /></Helmet>,
+                        Link: (props) => <Helmet><link {...props} /></Helmet>,
                     },
                 },
                 mdx(Layout)
             )
         )
     );
+    const helmet = Helmet.renderStatic();
 
     const withLayoutHtml = `
 <!DOCTYPE html>
 <html>
     <head>
         <title>${article.meta.title}</title>
-        <link rel="stylesheet" type="text/css" href="/eui_theme_light.css"/>
+        ${helmet.meta.toString()}
+        ${helmet.link.toString()}
+        ${helmet.noscript.toString()}
+        ${helmet.script.toString()}
+        ${helmet.style.toString()}
     </head>
     <body>
         ${articleHtml}
