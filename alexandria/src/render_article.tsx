@@ -1,6 +1,9 @@
 import { writeFile, mkdir } from 'fs'
 import { promisify } from 'util';
 import React, { ComponentType } from 'react';
+import { CacheProvider as EmotionCacheProvider } from '@emotion/react';
+import createEmotionServer from '@emotion/server/create-instance';
+import createCache from '@emotion/cache';
 // @ts-ignore
 import { mdx, MDXProvider } from '@mdx-js/react';
 import ReactDOM  from 'react-dom/server';
@@ -40,24 +43,32 @@ export async function renderArticle(config: RenderArticleConfig) {
     const Layout = require(join(outDir, 'layouts', `${layout.hash}.js`)).default;
     const Component = require(join(outDir, 'articles', `${article.hash}.js`)).default;
 
-    const articleHtml = ReactDOM.renderToStaticMarkup(
-        mdx(
-            AlexandriaContext.Provider,
-            { value: context },
-            mdx(
-                MDXProvider,
-                {
-                    components: {
-                        ...components,
-                        Article: Component,
-                        Style: (props) => <Helmet><style {...props} /></Helmet>,
-                        Link: (props) => <Helmet><link {...props} /></Helmet>,
+    const key = 'cachekey';
+    const cache = createCache({ key });
+    const { extractCritical } = createEmotionServer(cache);
+
+    const { html, css, ids } = extractCritical(ReactDOM.renderToStaticMarkup(
+        <AlexandriaContext.Provider value={ context }>
+            <EmotionCacheProvider value={cache}>
+                {mdx(
+                    MDXProvider,
+                    {
+                        components: {
+                            ...components,
+                            Article: Component,
+                            Style: (props) => <Helmet>
+                                <style {...props} />
+                            </Helmet>,
+                            Link: (props) => <Helmet>
+                                <link {...props} />
+                            </Helmet>,
+                        },
                     },
-                },
-                mdx(Layout)
-            )
-        )
-    );
+                    mdx(Layout)
+                )}
+            </EmotionCacheProvider>
+        </AlexandriaContext.Provider>
+    ));
     const helmet = Helmet.renderStatic();
 
     const withLayoutHtml = `
@@ -70,9 +81,10 @@ export async function renderArticle(config: RenderArticleConfig) {
         ${helmet.noscript.toString()}
         ${helmet.script.toString()}
         ${helmet.style.toString()}
+        <style data-emotion="${key} ${ids.join(' ')}">${css}</style>
     </head>
     <body>
-        ${articleHtml}
+        ${html}
         <script type="text/javascript" src="/app.js"></script>
     </body>
 </html>
