@@ -12,6 +12,7 @@
     "target": "ES5",
     "module": "CommonJS",
     "skipLibCheck": true,
+    "types": ["@emotion/react/types/css-prop"]
   },
   "include": ["src/**/*", "components/**/*", "components/utils"]
 }
