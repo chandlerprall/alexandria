@@ -1,10 +1,5 @@
-import React, { FunctionComponent } from 'react';
-import { EuiLink, EuiLinkProps } from '@elastic/eui/lib/components/link';
+import React, { FunctionComponent } from "react";
 
-const Anchor: FunctionComponent<any> = (props) => (
-    <EuiLink external={props.rel !== undefined ? true : false} {...props}>
-        {props.children}
-    </EuiLink>
-);
+const Anchor: FunctionComponent<any> = (props) => <a {...props}>{props.children}</a>;
 
 export default Anchor;

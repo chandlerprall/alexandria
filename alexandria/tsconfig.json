@@ -10,7 +10,8 @@
     "lib": [],
     "target": "ES2019",
     "module": "CommonJS",
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "skipLibCheck": true
   },
   "include": ["src/**/*"]
 }

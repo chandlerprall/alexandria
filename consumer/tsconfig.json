@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "baseUrl": ".",
-    "rootDir": "./src",
+    "rootDir": ".",
     "outDir": "build",
     "noUnusedLocals": true,
     "strict": true,
@@ -10,7 +10,8 @@
     "jsx": "react",
     "lib": ["DOM", "ESNext"],
     "target": "ES5",
-    "module": "CommonJS"
+    "module": "CommonJS",
+    "skipLibCheck": true
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "components/**/*", "components/utils"]
 }
