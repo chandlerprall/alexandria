@@ -1,56 +1,77 @@
-
-
 ---
 id: index
 slug: /
 title: Alexandria
 ---
 
-# Welcome to Alexandria
+# Alexandria
 
-Alexandria is a custom static site generator built for Chandler's personal website. This project is divided into two main directories: `alexandria` and `consumer`.
+Files are located at /Users/chandlerprall/projects/lilith-projects/alexandria
 
-## Alexandria Directory
+## About
 
-The `alexandria` directory contains the source code for the build tool. It includes:
-- `build`: Contains build-related files.
-- `node_modules`: Contains the project dependencies.
-- `package.json`: Contains the project metadata and dependencies.
-- `src`: Contains the source code for the build tool.
-- `tsconfig.json`: Contains the TypeScript configuration.
+This is the project for Chandler's personal website. It is built with a custom static site generator, called Alexandria. You'll notice `alexandria` is the project directory - this project contains both the generator (alexandria directory) and the site (consumer directory). We use yarn to manage and link the two workspaces.
 
-## Consumer Directory
 
-The `consumer` directory contains the source code for the site definition. It includes:
-- `articles`: Contains articles written in MDX.
-- `build`: Contains build-related files.
-- `components`: Contains custom components.
-- `layouts`: Contains layout components.
-- `out`: Contains the output of the build process.
-- `package.json`: Contains the project metadata and dependencies.
-- `src`: Contains the source code for the site.
-- `template.html`: Contains the HTML template for the site.
-- `tsconfig.json`: Contains the TypeScript configuration.
+    
+## Build and Run Steps
 
-## Getting Started
+Compiling alexandria
+* `cd ./alexandria`
+* `yarn compile`
 
-To get started with the Alexandria project, follow these steps:
-1. Clone the repository.
-2. Install dependencies using `yarn`.
-3. Build the site using `yarn build`.
-4. Serve the site using `yarn serve`.
+Compiling consumer
+* `cd ./consumer`
+* `yarn tsc && node .`
 
-## Features
+Serving
+* `cd ./consumer/out/build`
+* `python -m http.server`
+    
+  
 
-- **Custom Static Site Generator**: Built with TypeScript for robustness and maintainability.
-- **MDX Support**: Write articles and pages using MDX, a JSX-flavored Markdown.
-- **Custom Components**: Reusable components for consistent design and functionality.
-- **Responsive Design**: Ensures the site looks great on all devices.
+## Knowledge base
 
-## Contributing
+# Alexandria Project Structure
 
-Contributions are welcome! Please follow the guidelines in the `CONTRIBUTING.md` file to get started.
+## alexandria Directory
+- **package.json**: Contains dependencies and scripts for the generator.
+- **tsconfig.json**: TypeScript configuration for the generator.
+- **src/**: Source code for the generator.
 
-Want more info? <DocLink id="about" />
+## consumer Directory
+- **package.json**: Contains dependencies and scripts for the consumer.
+- **template.html**: HTML template for the site.
+- **tsconfig.json**: TypeScript configuration for the consumer.
+- **src/**: Source code for the consumer.
+- **public/**: Static assets for the site.
+- **layouts/**: Layout components for the site.
+- **components/**: Reusable components for the site.
+- **articles/**: Markdown articles for the site.
 
+## Key Files
+- **alexandria/package.json**: Lists dependencies and scripts for the generator.
+- **alexandria/tsconfig.json**: Configures TypeScript for the generator.
+- **consumer/package.json**: Lists dependencies and scripts for the consumer.
+- **consumer/template.html**: HTML template for the site.
+- **consumer/tsconfig.json**: Configures TypeScript for the consumer.
+- **consumer/src/index.mjs**: Main entry point for the consumer.
+- **consumer/public/site.css**: Static CSS for the site.
+- **consumer/layouts/main.mdx**: Main layout for the site.
+- **consumer/components/Header.tsx**: Header component.
+- **consumer/components/PageCentered.tsx**: Centered page component.
+- **consumer/components/_header.tsx**: Header component.
+- **consumer/articles/about.mdx**: About article.
+- **consumer/articles/index.mdx**: Index article.
+
+## Technologies Used
+- **TypeScript**: For writing the source code.
+- **React**: For building the user interface components.
+- **Emotion**: For styling components.
+- **MDX**: For writing articles with JSX.
+- **CSS**: For styling the site.
+- **HTML**: For structuring the site.
+- **JavaScript**: For adding interactivity to the site.
+- **YAML**: For configuration files.
+- **MDX**: For writing articles with JSX.
   
