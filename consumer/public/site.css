@@ -1,0 +1,30 @@
+html {
+    margin: 0;
+    padding: 0;
+    color: #2f2f2f;
+    font-family: 'Newsreader', serif;
+    font-size: 18px;
+}
+
+body {
+    margin: 0;
+    padding-top: 105px;
+    width: 100%;
+    overflow-x: hidden;
+    background-color: #f7f7f7;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 400;
+}
+
+/** Anchors **/
+a {
+    color: #417690;
+    text-decoration: none;
+}
+
+a:hover {
+ color: #54afb7;
+}
+/** End Anchors **/
